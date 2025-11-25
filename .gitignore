@@ -1,0 +1,40 @@
+# Python-specific
+*.pyc
+*.pyo
+*.pyd
+__pycache__/
+*.so
+*.dylib
+*.egg
+*.egg-info/
+dist/
+build/
+.eggs/
+*.log
+*.pot
+*.py[cod]
+*.swp
+*.swo
+
+# VSCode-specific
+.vscode/
+.idea/
+
+# MacOS-specific
+.DS_Store
+
+# Windows-specific
+Thumbs.db
+ehthumbs.db
+
+# Virtual environment
+venv/
+env/
+.venv/
+venv2/
+env/
+.venv2/
+ENV/
+
+# Jupyter Notebooks checkpoints
+.ipynb_checkpoints/
