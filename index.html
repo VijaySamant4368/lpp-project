@@ -3,171 +3,191 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Delhi Route Finder</title>
-
+  <title>Optimal Route Finder</title>
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
-
   <style>
-    body {
-      margin: 0;
-      font-family: system-ui, Arial, sans-serif;
-      background: #0b0c10;
-      color: #e6e6e6;
-      display: grid;
-      grid-template-columns: 360px 1fr;
-      height: 100vh;
-    }
-    #sidebar { padding: 14px; border-right: 1px solid #222; background: #111218; overflow-y: auto; }
-    #map { width: 100%; height: 100%; }
-    h2 { margin: 6px 0 12px; font-size: 20px; font-weight: 700; }
-    .section { background: #161822; padding: 12px; border-radius: 12px; margin-bottom: 12px; }
-    label { font-size: 13px; opacity: 0.9; display: block; margin-bottom: 5px; }
-    input[type="text"] {
-      width: 100%; padding: 10px; border-radius: 10px; border: 1px solid #2a2e3b;
-      background: #0f1118; color: #e6e6e6; outline: none; margin-bottom: 8px; font-size: 14px;
-    }
-    .row { display: flex; gap: 8px; }
-    button {
-      flex: 1; padding: 10px 12px; border-radius: 10px; border: 1px solid #2a2e3b;
-      background: #1b1f2b; color: #e6e6e6; cursor: pointer; font-weight: 600; font-size: 14px;
-    }
-    button.primary { background: #2f5cff; border-color: #2f5cff; color: white; }
-    .status { font-size: 13px; opacity: 0.9; margin-top: 6px; }
-    .hint { font-size: 12px; opacity: 0.75; margin-top: 6px; }
-    .small-note { font-size: 12px; opacity: 0.7; margin-top: 8px; }
+    body { margin:0; font-family:system-ui,Arial,sans-serif; background:#0b0c10; color:#e6e6e6; display:grid; grid-template-columns:380px 1fr; height:100vh; }
+    #sidebar { padding:20px; border-right:1px solid #222; background:#111218; overflow-y:auto; }
+    #map { width:100%; height:100%; }
+    h2 { margin:0 0 20px; font-size:22px; }
+    .section { background:#161822; padding:18px; border-radius:12px; margin-bottom:16px; }
+    label { font-size:13px; opacity:0.9; display:block; margin-bottom:6px; }
+    input[type="text"] { width:100%; padding:12px; border-radius:10px; border:1px solid #2a2e3b; background:#0f1118; color:#e6e6e6; outline:none; font-size:14px; margin-bottom:12px; }
+    button { padding:12px 20px; border-radius:10px; border:none; cursor:pointer; font-weight:600; font-size:14px; margin:6px 0; width:100%; }
+    button.primary { background:#2f5cff; color:white; }
+    button.secondary { background:#1b1f2b; border:1px solid #2a2e3b; color:#e6e6e6; }
+    .checkboxes label { display:flex; align-items:center; gap:10px; font-size:14px; cursor:pointer; margin:8px 0; user-select:none; }
+    .checkboxes input[type="checkbox"] { width:18px; height:18px; accent-color:#2f5cff; }
+    .status { margin-top:12px; font-size:13px; opacity:0.9; }
+    .hint { font-size:12px; opacity:0.7; margin-top:8px; }
   </style>
 </head>
-
 <body>
   <div id="sidebar">
-    <h2>Delhi Route Finder</h2>
-
+    <h2>Optimal Route Finder</h2>
     <div class="section">
-      <label for="startInput">Start place</label>
-      <input id="startInput" list="startSuggestions" type="text" placeholder="Start..." />
+      <label>Start place</label>
+      <input id="startInput" list="startSuggestions" type="text" placeholder="e.g. MG Road" />
       <datalist id="startSuggestions"></datalist>
 
-      <label for="endInput">End place</label>
-      <input id="endInput" list="endSuggestions" type="text" placeholder="End..." />
+      <label>End place</label>
+      <input id="endInput" list="endSuggestions" type="text" placeholder="e.g. Koramangala" />
       <datalist id="endSuggestions"></datalist>
 
-      <div class="row">
-        <button id="viewFullBtn">View full map</button>
-        <button id="calcBtn" class="primary">Calculate</button>
+      <div class="checkboxes">
+        <label><input type="checkbox" id="chkPrimary" checked> Primary roads</label>
+        <label><input type="checkbox" id="chkSecondary" checked> Secondary roads</label>
+        <label><input type="checkbox" id="chkTertiary" checked> Tertiary / Village roads</label>
       </div>
 
+      <button id="viewFullBtn" class="secondary">View Full Map</button>
+      <button id="calcBtn" class="primary">Calculate Route</button>
+
       <div id="status" class="status"></div>
-      <div class="hint">For now Calculate draws hardcoded road IDs.</div>
-      <div class="small-note">Later we will switch back to route finding.</div>
+      <div class="hint">Check-Uncheck road types for different routes</div>
     </div>
   </div>
 
   <div id="map"></div>
 
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-
   <script>
-    const DELHI_CENTER = [28.6129, 77.2295];
-    const FULL_ZOOM = 11;
-
-    const map = L.map("map").setView(DELHI_CENTER, FULL_ZOOM);
+    const map = L.map("map").setView([12.9716, 77.5946], 11);
     L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
-      maxZoom: 19,
-      attribution: "&copy; OpenStreetMap contributors",
+      attribution: "&copy; OpenStreetMap contributors"
     }).addTo(map);
 
-    let routeLayers = [];
-
-    function clearRoutes() {
-      routeLayers.forEach(l => map.removeLayer(l));
-      routeLayers = [];
-    }
+    let routeLayer = null;
+    let networkLayers = [];
+    let networkVisible = false;
+    let networkLoaded = false;
 
     function setStatus(msg) {
-      document.getElementById("status").innerText = msg || "";
+      document.getElementById("status").textContent = msg;
     }
 
-    function drawRoute(coords, opts = {}) {
-      const poly = L.polyline(coords, {
-        weight: opts.weight || 4,
-        opacity: opts.opacity || 0.75,
-        color: opts.color || "#888"
-      }).addTo(map);
-      routeLayers.push(poly);
-      return poly;
+    function clearRoute() {
+      if (routeLayer) { map.removeLayer(routeLayer); routeLayer = null; }
     }
 
-    const HARD_CODED_OSMIDS = [
-[250078364, 3204247268, 0], [3204247268, 7082499337, 0], [7082499337, 7082499336, 0], [7082499336, 7082499367, 0], [7082499367, 7082499280, 0], [7082499280, 7082499277, 0], [7082499277, 7082499267, 0], [7082499267, 9872051840, 0], [9872051840, 9872051869, 0], [9872051869, 4233301471, 0], [4233301471, 4233301612, 0], [4233301612, 7082499232, 0], [7082499232, 4233301603, 0], [4233301603, 7082434684, 0], [7082434684, 9871984933, 0], [9871984933, 2009111943, 0], [2009111943, 412330872, 0], [412330872, 5348668396, 0], [5348668396, 5348668397, 0], [5348668397, 7226777755, 0], [7226777755, 5348668398, 0], [5348668398, 5348668400, 0], [5348668400, 11586057014, 0], [11586057014, 5348668404, 0], [5348668404, 5358921176, 0], [5358921176, 5348668411, 0], [5348668411, 5348668410, 0], [5348668410, 6435702034, 0], [6435702034, 5464573094, 0], [5464573094, 5464573095, 0], [5464573095, 1764096405, 0], [1764096405, 1764096414, 0], [1764096414, 1763921360, 0], [1763921360, 1867171588, 0], [1867171588, 280740689, 0], [280740689, 280740702, 0], [280740702, 12904978952, 0], [12904978952, 6538681272, 0], [6538681272, 1867171602, 0], [1867171602, 316376859, 0], [316376859, 316376856, 0], [316376856, 280740678, 0], [280740678, 1867171623, 0], [1867171623, 2431986014, 0], [2431986014, 2431986031, 0], [2431986031, 8285355075, 0], [8285355075, 1765269510, 0], [1765269510, 1765269484, 0], [1765269484, 1765269541, 0], [1765269541, 1765269542, 0], [1765269542, 910549672, 0], [910549672, 3144938631, 0], [3144938631, 3144938528, 0], [3144938528, 6593532595, 0], [6593532595, 3144938650, 0], [3144938650, 3144938635, 0], [3144938635, 3144938675, 0], [3144938675, 3144938704, 0], [3144938704, 3144938667, 0], [3144938667, 5483954647, 0], [5483954647, 6655403096, 0], [6655403096, 563659647, 0], [563659647, 563659648, 0], [563659648, 3742314077, 0], [3742314077, 3742314094, 0], [3742314094, 621248519, 0], [621248519, 6657116970, 0], [6657116970, 621248517, 0], [621248517, 267609414, 0], [267609414, 1633262432, 0], [1633262432, 1633262433, 0], [1633262433, 9767010898, 0], [9767010898, 621248537, 0], [621248537, 5339323497, 0], [5339323497, 5339323485, 0], [5339323485, 621248528, 0], [621248528, 6657443540, 0], [6657443540, 267609496, 0], [267609496, 6436658261, 0], [6436658261, 1870091886, 0], [1870091886, 308887717, 0], [308887717, 6657447361, 0], [6657447361, 5483954511, 0], [5483954511, 5483954515, 0], [5483954515, 621248504, 0], [621248504, 433484629, 0], [433484629, 6657447379, 0], [6657447379, 6657447436, 0], [6657447436, 6657447427, 0], [6657447427, 563662818, 0], [563662818, 6657447431, 0], [6657447431, 267197936, 0], [267197936, 267197937, 0], [267197937, 267197938, 0], [267197938, 267197939, 0], [267197939, 2729066760, 0], [2729066760, 267609602, 0], [267609602, 6485009727, 0], [6485009727, 267196344, 0], [267196344, 8750357805, 0], [8750357805, 2729066812, 0], [2729066812, 267196303, 0], [267196303, 267196304, 0], [267196304, 267196290, 0], [267196290, 267196291, 0], [267196291, 6742341851, 0], [6742341851, 267196295, 0], [267196295, 267196305, 0], [267196305, 267253204, 0], [267253204, 6742341855, 0], [6742341855, 1762989519, 0], [1762989519, 1762989529, 0], [1762989529, 3742418043, 0], [3742418043, 249786848, 0], [249786848, 5792664581, 0], [5792664581, 5434484041, 0], [5434484041, 267250981, 0], [267250981, 5792664578, 0], [5792664578, 2431986256, 0], [2431986256, 2327524055, 0], [2327524055, 249783293, 0], [249783293, 249782337, 0], [249782337, 1191294765, 0], [1191294765, 1191294803, 0], [1191294803, 1869716891, 0], [1869716891, 249782343, 0]
-]
-    async function fetchRoadPolylines(edges) {
-      const res = await fetch("http://127.0.0.1:8000/show_roads", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ edges })
-      });
-      if (!res.ok) throw new Error(await res.text());
-      return await res.json();
+    function clearNetwork() {
+      networkLayers.forEach(l => map.removeLayer(l));
+      networkLayers = [];
+      networkVisible = false;
+      networkLoaded = false;
+      document.getElementById("viewFullBtn").textContent = "View Full Map";
     }
 
-    // Suggestions logic (correct place: outside click handler)
+    // === AUTOCOMPLETE SUGGESTIONS ===
     async function updateSuggestions(inputId, datalistId) {
       const input = document.getElementById(inputId);
       const dl = document.getElementById(datalistId);
       const q = input.value.trim();
+      if (q.length < 2) { dl.innerHTML = ""; return; }
 
-      if (q.length < 2) {
+      try {
+        const res = await fetch(`http://127.0.0.1:8000/suggest?q=${encodeURIComponent(q)}&limit=10`);
+        const data = await res.json();
         dl.innerHTML = "";
-        return;
-      }
-
-      const res = await fetch(`http://127.0.0.1:8000/suggest?q=${encodeURIComponent(q)}&limit=10`);
-      const data = await res.json();
-
-      dl.innerHTML = "";
-      (data.suggestions || []).forEach(name => {
-        const opt = document.createElement("option");
-        opt.value = name;
-        dl.appendChild(opt);
-      });
+        (data.suggestions || []).forEach(name => {
+          const opt = document.createElement("option");
+          opt.value = name;
+          dl.appendChild(opt);
+        });
+      } catch (err) { console.error(err); }
     }
 
-    document.getElementById("startInput").addEventListener("input", () => {
-      updateSuggestions("startInput", "startSuggestions");
-    });
+    document.getElementById("startInput").addEventListener("input", () => updateSuggestions("startInput", "startSuggestions"));
+    document.getElementById("endInput").addEventListener("input", () => updateSuggestions("endInput", "endSuggestions"));
 
-    document.getElementById("endInput").addEventListener("input", () => {
-      updateSuggestions("endInput", "endSuggestions");
-    });
+    // === VIEW FULL MAP ===
+    document.getElementById("viewFullBtn").addEventListener("click", async () => {
+      const btn = document.getElementById("viewFullBtn");
+      if (networkVisible) { clearNetwork(); setStatus("Full map hidden."); return; }
 
-    document.getElementById("viewFullBtn").addEventListener("click", () => {
-      map.setView(DELHI_CENTER, FULL_ZOOM);
-    });
+      setStatus("Loading full road network...");
+      clearRoute();
 
-    document.getElementById("calcBtn").addEventListener("click", async () => {
-      try {
-        setStatus("Fetching hardcoded roads...");
-        clearRoutes();
+      if (!networkLoaded) {
+        try {
+          const res = await fetch("http://127.0.0.1:8000/get-full-graph");
+          const data = await res.json();
+          const colorMap = { primary: "#1E90FF", secondary: "#32CD32", tertiary: "#964B00" };
+          const widthMap = { primary: 7, secondary: 5, tertiary: 3 };
 
-        const data = await fetchRoadPolylines(HARD_CODED_OSMIDS);
-
-        if (!data.polylines || data.polylines.length === 0) {
-          setStatus("No matching edges found for these osmids.");
+          data.edges.forEach(e => {
+            const poly = L.polyline(e.coords, {
+              color: colorMap[e.type] || "#888",
+              weight: widthMap[e.type] || 2,
+              opacity: 0.6
+            }).addTo(map);
+            networkLayers.push(poly);
+          });
+          networkLoaded = true;
+        } catch (err) {
+          setStatus("Failed to load full map");
+          console.error(err);
           return;
         }
+      } else {
+        networkLayers.forEach(l => l.addTo(map));
+      }
 
-        data.polylines.forEach(line => {
-          drawRoute(line, { color: "#ff3b3b", weight: 4, opacity: 0.9 });
+      networkVisible = true;
+      btn.textContent = "Hide Full Map";
+      map.fitBounds(L.featureGroup(networkLayers).getBounds().pad(0.05));
+      setStatus("Full road network displayed");
+    });
+
+    // === CALCULATE ROUTE ===
+    document.getElementById("calcBtn").addEventListener("click", async () => {
+      const start = document.getElementById("startInput").value.trim();
+      const end = document.getElementById("endInput").value.trim();
+      if (!start || !end) return setStatus("Please enter both places");
+
+      const payload = {
+        start, end,
+        primary: document.getElementById("chkPrimary").checked,
+        secondary: document.getElementById("chkSecondary").checked,
+        tertiary: document.getElementById("chkTertiary").checked
+      };
+
+      setStatus("Finding your route...");
+      clearRoute();
+
+      try {
+        const res = await fetch("http://127.0.0.1:8000/get-route", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(payload)
         });
 
-        setStatus("Done.");
+        if (!res.ok) throw new Error(await res.text());
+        const data = await res.json();
 
-        const group = L.featureGroup(routeLayers);
-        map.fitBounds(group.getBounds(), { padding: [30, 30] });
+        if (!data.polylines?.length) throw new Error("No route found");
 
+        routeLayer = L.polyline(data.polylines.flat(), {
+          color: "#ff3399",
+          weight: 6,
+          opacity: 1,
+          dashArray: "15, 15",
+          dashOffset: "0"
+        }).addTo(map);
+
+        // Animation — the line "runs" forward
+        function animateDash() {
+          const offset = (Number(routeLayer.options.dashOffset || 0) - 1) % 30;
+          routeLayer.setStyle({ dashOffset: offset.toString() });
+          requestAnimationFrame(animateDash);
+        }
+        animateDash();
+
+        map.fitBounds(routeLayer.getBounds().pad(0.1));
+        setStatus(`Route ready: ${(data.distance_m / 1000).toFixed(1)} km`);
       } catch (err) {
-        console.error(err);
         setStatus("Error: " + err.message);
+        console.error(err);
       }
     });
   </script>

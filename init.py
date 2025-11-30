@@ -1,24 +1,35 @@
 import osmnx as ox
+import networkx as nx
 
-CENTER = (28.6129, 77.2295)    # Delhi center
-CENTER = (28.69826841750161, 77.20602400925607) #GTB
-DIST_HIGHEST = 10_000
-DIST_HIGH = 7000
-DIST_MID = 3000
-DIST_SMALL = 1000
+center_address = "Bengaluru, India"
+USE_DIST = 2000
 
-USE_DIST = DIST_MID
-FILE_NAME = "delhi_small_drive" if USE_DIST == DIST_SMALL else "delhi_medium_drive" if USE_DIST == DIST_MID else "delhi_high_drive" if USE_DIST == DIST_HIGH else "delhi_19km_drive" if USE_DIST == DIST_HIGHEST else "idk"
+desired_types = {"primary", "secondary", "tertiary"}
 
-G = ox.graph_from_point(CENTER, dist=USE_DIST, network_type="drive", simplify=True)
-try:
-    G = ox.add_edge_speeds(G)
-    G = ox.add_edge_travel_times(G)
-except:
-    pass
+G = ox.graph_from_address(
+    center_address,
+    dist=USE_DIST,
+    network_type="drive",
+    simplify=True
+)
 
-print("Total nodes:", len(G.nodes))
-print("Total edges:", len(G.edges))
+G_filtered = G.copy()
 
-ox.save_graphml(G, f"{FILE_NAME}.graphml")
-print(f"Saved {FILE_NAME}.graphml")
+edges_to_remove = []
+for u, v, k, data in G_filtered.edges(keys=True, data=True):
+    hw = data.get("highway")
+    if hw is None:
+        edges_to_remove.append((u, v, k))
+        continue
+
+    hw_list = hw if isinstance(hw, list) else [hw]
+    if not desired_types.intersection(hw_list):
+        edges_to_remove.append((u, v, k))
+
+G_filtered.remove_edges_from(edges_to_remove)
+G_filtered.remove_nodes_from(list(nx.isolates(G_filtered)))
+
+print("Nodes:", len(G_filtered.nodes))
+print("Edges:", len(G_filtered.edges))
+
+ox.save_graphml(G_filtered, "primary_secondary_tertiary_roads.graphml")

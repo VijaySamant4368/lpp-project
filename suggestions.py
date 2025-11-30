@@ -1,6 +1,6 @@
 import json
 
-NODE_JSON = "node.json"
+NODE_JSON = "node_primary_secondary_tertiary.json"
 
 def normalize_address(addr: str) -> str:
     """
@@ -17,15 +17,14 @@ def normalize_address(addr: str) -> str:
 
 print("Loading node.json for suggestions...")
 with open(NODE_JSON, "r", encoding="utf-8") as f:
-    node_map = json.load(f)  # { "58056528": "address", ... }
+    node_map = json.load(f)
 
-# Build mapping: name → node_id
 name_to_node = {}
 for node_id_str, addr in node_map.items():
     name = normalize_address(addr)
     if not name:
         continue
-    # Keep only one node per road-name (dedup)
+    
     if name not in name_to_node:
         name_to_node[name] = int(node_id_str)
 

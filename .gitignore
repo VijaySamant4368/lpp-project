@@ -38,3 +38,7 @@ ENV/
 
 # Jupyter Notebooks checkpoints
 .ipynb_checkpoints/
+
+*.graphml
+*.json
+./cache
