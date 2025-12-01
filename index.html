@@ -6,26 +6,129 @@
   <title>Optimal Route Finder</title>
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
   <style>
-    body { margin:0; font-family:system-ui,Arial,sans-serif; background:#0b0c10; color:#e6e6e6; display:grid; grid-template-columns:380px 1fr; height:100vh; }
-    #sidebar { padding:20px; border-right:1px solid #222; background:#111218; overflow-y:auto; }
+    body {
+      margin:0;
+      font-family:system-ui,Arial,sans-serif;
+      background:#0b0c10;
+      color:#e6e6e6;
+      display:grid;
+      grid-template-columns:380px 1fr;
+      height:100vh;
+    }
+    #sidebar {
+      padding:20px;
+      border-right:1px solid #222;
+      background:#111218;
+      overflow-y:auto;
+    }
     #map { width:100%; height:100%; }
     h2 { margin:0 0 20px; font-size:22px; }
-    .section { background:#161822; padding:18px; border-radius:12px; margin-bottom:16px; }
-    label { font-size:13px; opacity:0.9; display:block; margin-bottom:6px; }
-    input[type="text"] { width:100%; padding:12px; border-radius:10px; border:1px solid #2a2e3b; background:#0f1118; color:#e6e6e6; outline:none; font-size:14px; margin-bottom:12px; }
-    button { padding:12px 20px; border-radius:10px; border:none; cursor:pointer; font-weight:600; font-size:14px; margin:6px 0; width:100%; }
+
+    .section {
+      background:#161822;
+      padding:18px;
+      border-radius:12px;
+      margin-bottom:16px;
+    }
+
+    label {
+      font-size:13px;
+      opacity:0.9;
+      display:block;
+      margin-bottom:6px;
+    }
+
+    input[type="text"] {
+      width:100%;
+      padding:12px;
+      border-radius:10px;
+      border:1px solid #2a2e3b;
+      background:#0f1118;
+      color:#e6e6e6;
+      outline:none;
+      font-size:14px;
+      margin-bottom:12px;
+    }
+
+    button {
+      padding:12px 20px;
+      border-radius:10px;
+      border:none;
+      cursor:pointer;
+      font-weight:600;
+      font-size:14px;
+      margin:6px 0;
+      width:100%;
+    }
     button.primary { background:#2f5cff; color:white; }
-    button.secondary { background:#1b1f2b; border:1px solid #2a2e3b; color:#e6e6e6; }
-    .checkboxes label { display:flex; align-items:center; gap:10px; font-size:14px; cursor:pointer; margin:8px 0; user-select:none; }
-    .checkboxes input[type="checkbox"] { width:18px; height:18px; accent-color:#2f5cff; }
-    .status { margin-top:12px; font-size:13px; opacity:0.9; }
-    .hint { font-size:12px; opacity:0.7; margin-top:8px; }
+    button.secondary {
+      background:#1b1f2b;
+      border:1px solid #2a2e3b;
+      color:#e6e6e6;
+    }
+
+    .checkboxes label {
+      display:flex;
+      align-items:center;
+      gap:10px;
+      font-size:14px;
+      cursor:pointer;
+      margin:8px 0;
+      user-select:none;
+    }
+    .checkboxes input[type="checkbox"] {
+      width:18px;
+      height:18px;
+      accent-color:#2f5cff;
+    }
+
+    .status {
+      margin-top:12px;
+      font-size:13px;
+      opacity:0.9;
+    }
+    .hint {
+      font-size:12px;
+      opacity:0.7;
+      margin-top:8px;
+    }
+
+    /* City tabs */
+    .city-tabs {
+      display:flex;
+      gap:8px;
+      margin-bottom:14px;
+      background:#0f1118;
+      padding:4px;
+      border-radius:10px;
+    }
+    .city-tab {
+      flex:1;
+      border:none;
+      border-radius:8px;
+      padding:8px 10px;
+      font-size:13px;
+      font-weight:600;
+      cursor:pointer;
+      background:transparent;
+      color:#9ca3af;
+    }
+    .city-tab.active {
+      background:#2f5cff;
+      color:#ffffff;
+    }
   </style>
 </head>
 <body>
   <div id="sidebar">
     <h2>Optimal Route Finder</h2>
     <div class="section">
+      <!-- City selection tabs -->
+      <div class="city-tabs">
+        <button class="city-tab active" data-city="bangalore">Bangalore</button>
+        <button class="city-tab" data-city="delhi">Delhi</button>
+      </div>
+
       <label>Start place</label>
       <input id="startInput" list="startSuggestions" type="text" placeholder="e.g. MG Road" />
       <datalist id="startSuggestions"></datalist>
@@ -62,12 +165,17 @@
     let networkVisible = false;
     let networkLoaded = false;
 
+    let currentCity = "bangalore";
+
     function setStatus(msg) {
       document.getElementById("status").textContent = msg;
     }
 
     function clearRoute() {
-      if (routeLayer) { map.removeLayer(routeLayer); routeLayer = null; }
+      if (routeLayer) {
+        map.removeLayer(routeLayer);
+        routeLayer = null;
+      }
     }
 
     function clearNetwork() {
@@ -78,7 +186,19 @@
       document.getElementById("viewFullBtn").textContent = "View Full Map";
     }
 
-    // === AUTOCOMPLETE SUGGESTIONS ===
+    document.querySelectorAll(".city-tab").forEach(btn => {
+      btn.addEventListener("click", () => {
+        document.querySelectorAll(".city-tab").forEach(b => b.classList.remove("active"));
+        btn.classList.add("active");
+        currentCity = btn.dataset.city; // "bangalore"|"delhi"
+        setStatus(
+          `City set to ${currentCity.charAt(0).toUpperCase() + currentCity.slice(1)}`
+        );
+        clearRoute();
+        clearNetwork();
+      });
+    });
+
     async function updateSuggestions(inputId, datalistId) {
       const input = document.getElementById(inputId);
       const dl = document.getElementById(datalistId);
@@ -86,7 +206,9 @@
       if (q.length < 2) { dl.innerHTML = ""; return; }
 
       try {
-        const res = await fetch(`http://127.0.0.1:8000/suggest?q=${encodeURIComponent(q)}&limit=10`);
+        const res = await fetch(
+          `http://127.0.0.1:8000/suggest?q=${encodeURIComponent(q)}&limit=10&city=${encodeURIComponent(currentCity)}`
+        );
         const data = await res.json();
         dl.innerHTML = "";
         (data.suggestions || []).forEach(name => {
@@ -94,23 +216,32 @@
           opt.value = name;
           dl.appendChild(opt);
         });
-      } catch (err) { console.error(err); }
+      } catch (err) {
+        console.error(err);
+      }
     }
 
-    document.getElementById("startInput").addEventListener("input", () => updateSuggestions("startInput", "startSuggestions"));
-    document.getElementById("endInput").addEventListener("input", () => updateSuggestions("endInput", "endSuggestions"));
+    document.getElementById("startInput")
+      .addEventListener("input", () => updateSuggestions("startInput", "startSuggestions"));
+    document.getElementById("endInput")
+      .addEventListener("input", () => updateSuggestions("endInput", "endSuggestions"));
 
-    // === VIEW FULL MAP ===
     document.getElementById("viewFullBtn").addEventListener("click", async () => {
       const btn = document.getElementById("viewFullBtn");
-      if (networkVisible) { clearNetwork(); setStatus("Full map hidden."); return; }
+      if (networkVisible) {
+        clearNetwork();
+        setStatus("Full map hidden.");
+        return;
+      }
 
       setStatus("Loading full road network...");
       clearRoute();
 
       if (!networkLoaded) {
         try {
-          const res = await fetch("http://127.0.0.1:8000/get-full-graph");
+          const res = await fetch(
+            `http://127.0.0.1:8000/get-full-graph?city=${encodeURIComponent(currentCity)}`
+          );
           const data = await res.json();
           const colorMap = { primary: "#1E90FF", secondary: "#32CD32", tertiary: "#964B00" };
           const widthMap = { primary: 7, secondary: 5, tertiary: 3 };
@@ -136,20 +267,24 @@
       networkVisible = true;
       btn.textContent = "Hide Full Map";
       map.fitBounds(L.featureGroup(networkLayers).getBounds().pad(0.05));
-      setStatus("Full road network displayed");
+      setStatus(`Full road network displayed for ${currentCity}`);
     });
 
-    // === CALCULATE ROUTE ===
     document.getElementById("calcBtn").addEventListener("click", async () => {
       const start = document.getElementById("startInput").value.trim();
       const end = document.getElementById("endInput").value.trim();
-      if (!start || !end) return setStatus("Please enter both places");
+      if (!start || !end) {
+        setStatus("Please enter both places");
+        return;
+      }
 
       const payload = {
-        start, end,
+        start,
+        end,
         primary: document.getElementById("chkPrimary").checked,
         secondary: document.getElementById("chkSecondary").checked,
-        tertiary: document.getElementById("chkTertiary").checked
+        tertiary: document.getElementById("chkTertiary").checked,
+        city: currentCity
       };
 
       setStatus("Finding your route...");
@@ -175,7 +310,6 @@
           dashOffset: "0"
         }).addTo(map);
 
-        // Animation — the line "runs" forward
         function animateDash() {
           const offset = (Number(routeLayer.options.dashOffset || 0) - 1) % 30;
           routeLayer.setStyle({ dashOffset: offset.toString() });
@@ -184,7 +318,9 @@
         animateDash();
 
         map.fitBounds(routeLayer.getBounds().pad(0.1));
-        setStatus(`Route ready: ${(data.distance_m / 1000).toFixed(1)} km`);
+        setStatus(
+          `Route ready (${currentCity}): ${(data.distance_m / 1000).toFixed(1)} km`
+        );
       } catch (err) {
         setStatus("Error: " + err.message);
         console.error(err);

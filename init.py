@@ -2,7 +2,8 @@ import osmnx as ox
 import networkx as nx
 
 center_address = "Bengaluru, India"
-USE_DIST = 2000
+center_address = "Vishwavidyalaya, Delhi"
+USE_DIST = 3000
 
 desired_types = {"primary", "secondary", "tertiary"}
 
@@ -32,4 +33,4 @@ G_filtered.remove_nodes_from(list(nx.isolates(G_filtered)))
 print("Nodes:", len(G_filtered.nodes))
 print("Edges:", len(G_filtered.edges))
 
-ox.save_graphml(G_filtered, "primary_secondary_tertiary_roads.graphml")
+ox.save_graphml(G_filtered, "vv.graphml")
